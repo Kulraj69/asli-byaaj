@@ -1,0 +1,27 @@
+import { formatApr, type LoanResult, type Offer } from "./loan";
+import { RBI_RULES, type FlagDefinition, type Language } from "./flags";
+import type { compareAlternative } from "./alternatives";
+export const rupees = (value: number) => `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2, minimumFractionDigits: 0 })}`;
+export function explainLoan(result: LoanResult, comparison: ReturnType<typeof compareAlternative>) {
+  return {
+    en: `You receive ${rupees(result.amountReceived)} and repay ${rupees(result.totalRepaid)} over ${result.durationDays} days. The total cost is ${rupees(result.totalCost)} — ${rupees(result.costPer100)} for every ₹100 you actually receive. Your effective annual rate is ${result.aprDisplay}. At the example rate of ${comparison.rate}% per year, the same amount and payment dates would cost ${rupees(comparison.exampleCost)} in interest, before any comparison-lender fees. Check an actual quote with your bank.`,
+    hi: `आपको ${rupees(result.amountReceived)} मिलते हैं और आप ${result.durationDays} दिनों में ${rupees(result.totalRepaid)} लौटाते हैं। कुल लागत ${rupees(result.totalCost)} है — वास्तव में मिले हर ₹100 पर ${rupees(result.costPer100)}। प्रभावी सालाना दर ${result.aprDisplay} है। उदाहरण की ${comparison.rate}% सालाना दर पर इसी रकम और भुगतान की तारीखों के लिए ब्याज ${rupees(comparison.exampleCost)} होता, दूसरे ऋणदाता के शुल्क अलग। अपने बैंक से वास्तविक प्रस्ताव जाँचें।`,
+  };
+}
+export function receiptText(result: LoanResult, language: Language = "en") {
+  return language === "hi"
+    ? `ASLI BYAAJ 5150\nमिले: ${rupees(result.amountReceived)}\nलौटाने हैं: ${rupees(result.totalRepaid)}\nकुल लागत: ${rupees(result.totalCost)}\nअवधि: ${result.durationDays} दिन\nप्रभावी सालाना APR: ${result.aprDisplay}\nनाममात्र सालाना APR: ${formatApr(result.nominalApr)}\nप्रति ₹100 लागत: ${rupees(result.costPer100)}\nभरे गए विवरण पर अनुमान; शुल्क और तारीखें जाँचें। सालाना दर छोटी अवधि की लागत को साल भर के बराबर दिखाती है।`
+    : `ASLI BYAAJ 5150\nReceived: ${rupees(result.amountReceived)}\nRepay: ${rupees(result.totalRepaid)}\nTotal cost: ${rupees(result.totalCost)}\nTerm: ${result.durationDays} days\nEffective annual APR: ${result.aprDisplay}\nNominal annual APR: ${formatApr(result.nominalApr)}\nCost per ₹100 received: ${rupees(result.costPer100)}\nEstimate from entered terms; verify fees and dates. Annualisation expresses the short-term rate over a full year.`;
+}
+export function complaintDraft(offer: Offer, result: LoanResult, flags: FlagDefinition[]) {
+  if (!flags.length) return undefined;
+  const concerns = flags.map(flag => `- ${flag.question.en} My answer: ${flag.badAnswer ? "Yes" : "No"}.`).join("\n");
+  const concernsHi = flags.map(flag => `- ${flag.question.hi} मेरा जवाब: ${flag.badAnswer ? "हाँ" : "नहीं"}।`).join("\n");
+  const harassment = flags.some(flag => flag.id === "harassment");
+  const route = "Choose the appropriate route: lender grievance officer first where appropriate; RBI Sachet: https://sachet.rbi.org.in (check its scope; not every lending complaint belongs here). RBI CMS: https://cms.rbi.org.in for eligible complaints against regulated entities, subject to its process.";
+  const safety = harassment ? "\nFor threats/harassment, consider https://cybercrime.gov.in. For financial cyber fraud, call 1930 promptly. Keep screenshots and call records. For immediate danger, contact local emergency services." : "";
+  return {
+    en: `DRAFT — review, replace brackets and send yourself.\n\nSubject: Request to review lending charges / conduct\n\nLender / app: [add privately]\nLoan date / reference: [add privately]\n\nThe stated principal was ${rupees(offer.principal)}. I received ${rupees(result.amountReceived)} and the entered schedule totals ${rupees(result.totalRepaid)} over ${result.durationDays} days. My cash-flow estimate of the effective annual rate is ${result.aprDisplay}; please verify against the actual agreement.\n\nConcerns based on my answers:\n${concerns}\n\nPlease review the disclosures and conduct in light of ${RBI_RULES}, as applicable. Please provide the KFS, the regulated lender’s identity, an itemised statement of charges and a written response. These are concerns for review, not a finding of a violation.\n\nEvidence: [add privately; redact unrelated personal information]\n${route}${safety}`,
+    hi: `मसौदा — जाँचें, कोष्ठक भरें और स्वयं भेजें।\n\nविषय: ऋण शुल्क / व्यवहार की जाँच का अनुरोध\n\nऋणदाता / ऐप: [निजी तौर पर जोड़ें]\nऋण तारीख / संदर्भ: [निजी तौर पर जोड़ें]\n\nबताया गया मूलधन ${rupees(offer.principal)} था। मुझे ${rupees(result.amountReceived)} मिले और दर्ज भुगतान कुल ${rupees(result.totalRepaid)} है, ${result.durationDays} दिनों में। नकदी प्रवाह से अनुमानित प्रभावी सालाना दर ${result.aprDisplay} है; कृपया असली समझौते से जाँचें।\n\nमेरे जवाबों के आधार पर चिंताएँ:\n${concernsHi}\n\nकृपया लागू RBI डिजिटल ऋण नियमों (Digital Lending Guidelines 2022 / Digital Lending Directions 2025) के अनुसार जाँचें। KFS, विनियमित ऋणदाता का नाम, सभी शुल्क और लिखित जवाब दें। ये जाँच के लिए चिंताएँ हैं, उल्लंघन का निष्कर्ष नहीं।\n\nसबूत: [निजी तौर पर जोड़ें]\nउचित माध्यम चुनें: जहाँ लागू हो पहले ऋणदाता का शिकायत अधिकारी; RBI Sachet https://sachet.rbi.org.in (दायरा जाँचें); पात्र विनियमित संस्था की शिकायत के लिए RBI CMS https://cms.rbi.org.in की प्रक्रिया देखें।${harassment ? "\nधमकी / उत्पीड़न: https://cybercrime.gov.in; वित्तीय साइबर धोखाधड़ी के लिए तुरंत 1930। सबूत सुरक्षित रखें। तत्काल खतरे में स्थानीय आपात सेवाओं से संपर्क करें।" : ""}`,
+  };
+}
